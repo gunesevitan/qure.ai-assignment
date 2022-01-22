@@ -41,3 +41,31 @@ def visualize_learning_curve(training_losses, validation_losses, title, path=Non
     else:
         plt.savefig(path)
         plt.close(fig)
+
+
+def visualize_scores(scores, title, path=None):
+
+    """
+    Visualize classification metric scores of the model predictions
+
+    Parameters
+    ----------
+    scores (dict): Dictionary of scores
+    title (str): Title of the plot
+    path (str or None): Path of the output file (if path is None, plot is displayed with selected backend)
+    """
+
+    fig, ax = plt.subplots(figsize=(24, 6))
+    ax.barh(*zip(*scores.items()))
+    ax.set_yticks(np.arange(len(scores)))
+    ax.set_yticklabels([f'{metric} ({score:.4})' for metric, score in scores.items()])
+    ax.set_xlabel('')
+    ax.tick_params(axis='x', labelsize=12.5, pad=10)
+    ax.tick_params(axis='y', labelsize=12.5, pad=10)
+    ax.set_title(title, size=20, pad=15)
+
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path)
+        plt.close(fig)

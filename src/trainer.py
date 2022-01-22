@@ -1,3 +1,4 @@
+import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -5,6 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 import torch.optim as optim
 from transformers import DistilBertTokenizer
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 import training_utils
 import visualization
@@ -104,7 +106,7 @@ class ClassificationTrainer:
 
         Parameters
         ----------
-        df [pandas.DataFrame of shape (n_samples, 7)]: Dataframe of texts, labels and folds
+        df [pandas.DataFrame of shape (n_samples, n_columns)]: Dataframe of texts, labels and folds
         """
 
         print(f'\n{"-" * 30}\nRunning Model for Training\n{"-" * 30}\n')
@@ -126,7 +128,7 @@ class ClassificationTrainer:
         )
         val_dataset = NewsDataset(
             df.loc[val_idx, 'content'].values,
-            df.loc[trn_idx, self.model_parameters['labels']].values,
+            df.loc[val_idx, self.model_parameters['labels']].values,
             tokenizer=DistilBertTokenizer.from_pretrained(self.model_parameters['model_class_parameters']['pretrained_model_path']),
             max_seq_len=self.model_parameters['max_seq_len']
         )
@@ -191,3 +193,93 @@ class ClassificationTrainer:
                     path=f'{self.model_parameters["model_path"]}/{self.model_parameters["model_filename"]}_learning_curve.png'
                 )
                 early_stopping = True
+
+    def inference(self, df):
+
+        """
+        Predict and evaluate texts listed on given dataframe with specified configuration
+
+        Parameters
+        ----------
+        df [pandas.DataFrame of shape (n_samples, n_columns)]: Dataframe of texts, labels and folds
+        """
+
+        print(f'\n{"-" * 30}\nRunning Model for Inference\n{"-" * 30}\n')
+
+        val_idx, test_idx = df.loc[df['fold'] == 'val'].index, df.loc[df['fold'] == 'test'].index
+        val_dataset = NewsDataset(
+            df.loc[val_idx, 'content'].values,
+            df.loc[val_idx, self.model_parameters['labels']].values,
+            tokenizer=DistilBertTokenizer.from_pretrained(self.model_parameters['model_class_parameters']['pretrained_model_path']),
+            max_seq_len=self.model_parameters['max_seq_len']
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=self.training_parameters['data_loader']['test_batch_size'],
+            sampler=SequentialSampler(val_dataset),
+            pin_memory=True,
+            drop_last=False,
+            num_workers=self.training_parameters['data_loader']['num_workers']
+        )
+        test_dataset = NewsDataset(
+            df.loc[test_idx, 'content'].values,
+            df.loc[test_idx, self.model_parameters['labels']].values,
+            tokenizer=DistilBertTokenizer.from_pretrained(self.model_parameters['model_class_parameters']['pretrained_model_path']),
+            max_seq_len=self.model_parameters['max_seq_len']
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=self.training_parameters['data_loader']['test_batch_size'],
+            sampler=SequentialSampler(test_dataset),
+            pin_memory=True,
+            drop_last=False,
+            num_workers=self.training_parameters['data_loader']['num_workers']
+        )
+
+        training_utils.set_seed(self.training_parameters['random_state'], deterministic_cudnn=self.training_parameters['deterministic_cudnn'])
+        device = torch.device(self.training_parameters['device'])
+        model = DistilBERT(**self.model_parameters['model_class_parameters'])
+        model_path = f'{self.model_parameters["model_path"]}/{self.model_parameters["model_filename"]}.pt'
+        model.load_state_dict(torch.load(model_path))
+        model = model.to(device)
+        model.eval()
+
+        val_predictions = []
+        with torch.no_grad():
+            for sequences, label in tqdm(val_loader):
+                input_ids, token_type_ids, attention_mask, target = sequences['input_ids'].to(device), sequences['token_type_ids'].to(device), sequences['attention_mask'].to(device), label.to(device)
+                output = model(input_ids, attention_mask)
+                val_predictions += np.argmax(output.detach().cpu().numpy(), axis=1).tolist()
+        df.loc[val_idx, 'predictions'] = np.array(val_predictions)
+
+        test_predictions = []
+        with torch.no_grad():
+            for sequences, label in tqdm(test_loader):
+                input_ids, token_type_ids, attention_mask, target = sequences['input_ids'].to(device), sequences['token_type_ids'].to(device), sequences['attention_mask'].to(device), label.to(device)
+                output = model(input_ids, attention_mask)
+                test_predictions += np.argmax(output.detach().cpu().numpy(), axis=1).tolist()
+        df.loc[test_idx, 'predictions'] = np.array(test_predictions)
+
+        df['labels'] = np.argmax(pd.get_dummies(df['category']).values, axis=1)
+        val_scores = {
+            'accuracy': accuracy_score(df.loc[val_idx, 'labels'], df.loc[val_idx, 'predictions']),
+            'precision': precision_score(df.loc[val_idx, 'labels'], df.loc[val_idx, 'predictions'], average='macro'),
+            'recall': recall_score(df.loc[val_idx, 'labels'], df.loc[val_idx, 'predictions'], average='macro'),
+            'f1_score': f1_score(df.loc[val_idx, 'labels'], df.loc[val_idx, 'predictions'], average='macro')
+        }
+        visualization.visualize_scores(
+            val_scores,
+            f'{self.model_parameters["model_filename"]} - Validation Scores',
+            path=f'{self.model_parameters["model_path"]}/{self.model_parameters["model_filename"]}_val_scores.png'
+        )
+        test_scores = {
+            'accuracy': accuracy_score(df.loc[test_idx, 'labels'], df.loc[test_idx, 'predictions']),
+            'precision': precision_score(df.loc[test_idx, 'labels'], df.loc[test_idx, 'predictions'], average='macro'),
+            'recall': recall_score(df.loc[test_idx, 'labels'], df.loc[test_idx, 'predictions'], average='macro'),
+            'f1_score': f1_score(df.loc[test_idx, 'labels'], df.loc[test_idx, 'predictions'], average='macro')
+        }
+        visualization.visualize_scores(
+            test_scores,
+            f'{self.model_parameters["model_filename"]} - Test Scores',
+            path=f'{self.model_parameters["model_path"]}/{self.model_parameters["model_filename"]}_test_scores.png'
+        )
