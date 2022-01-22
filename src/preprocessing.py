@@ -106,6 +106,7 @@ class PreprocessingPipeline:
 
         self.df = self.df.loc[~self.df['category'].isin(other_categories), :].reset_index(drop=True)
         self.df['category_labels'] = LabelEncoder().fit_transform(self.df['category'])
+        self.df = pd.concat((self.df, pd.get_dummies(self.df['category'])), axis=1)
 
     def transform(self):
 

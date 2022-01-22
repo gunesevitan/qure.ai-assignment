@@ -11,8 +11,9 @@ class DistilBERT(nn.Module):
         self.config = DistilBertConfig.from_pretrained(pretrained_model_path)
         self.config.update({'num_labels': num_labels})
 
-        self.head = nn.Linear(self.config.hidden_size, 1)
-        self._init_weights(self.head)
+        self.linear = nn.Linear(self.config.hidden_size, num_labels)
+        self.softmax = nn.Softmax()
+        self._init_weights(self.linear)
 
     def _init_weights(self, module):
 
@@ -26,7 +27,6 @@ class DistilBERT(nn.Module):
         outputs = self.distilbert(input_ids=input_ids, attention_mask=attention_mask)
         hidden_state = outputs[0]
         output = hidden_state[:, 0]
-        output = self.head(output)
-        output = output.view(-1)
+        output = self.softmax(self.linear(output))
 
         return output
