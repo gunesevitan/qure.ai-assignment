@@ -1,0 +1,41 @@
+model_parameters:
+  model_filename: distilbert
+  model_path: ../models/distilbert
+  model_checkpoint_path: null
+  max_seq_len: 256
+  labels:
+    - art
+    - economy
+    - education
+    - industry
+    - international
+    - national
+    - science & technology
+    - sports
+  model_class_parameters:
+    pretrained_model_path: distilbert-base-uncased
+    num_labels: 8
+    output_hidden_states: False
+
+training_parameters:
+  optimizer: AdamW
+  optimizer_parameters:
+    lr: 0.001
+    betas:
+      - 0.9
+      - 0.999
+    weight_decay: 0.000001
+  lr_scheduler: CosineAnnealingLR
+  lr_scheduler_parameters:
+    T_max: 50
+    eta_min: 0.0001
+    last_epoch: -1
+  data_loader:
+    training_batch_size: 2
+    test_batch_size: 128
+    num_workers: 0
+  epochs: 100
+  early_stopping_patience: 15
+  deterministic_cudnn: False
+  device: cuda
+  random_state: 42
