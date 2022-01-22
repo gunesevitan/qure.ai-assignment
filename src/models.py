@@ -2,11 +2,11 @@ import torch.nn as nn
 from transformers import DistilBertModel, DistilBertConfig
 
 
-class DistilBERTModel(nn.Module):
+class DistilBERT(nn.Module):
 
     def __init__(self, pretrained_model_path, num_labels, output_hidden_states=False):
 
-        super(DistilBERTModel, self).__init__()
+        super(DistilBERT, self).__init__()
         self.distilbert = DistilBertModel.from_pretrained(pretrained_model_path, output_hidden_states=output_hidden_states)
         self.config = DistilBertConfig.from_pretrained(pretrained_model_path)
         self.config.update({'num_labels': num_labels})
