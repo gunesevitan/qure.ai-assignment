@@ -16,8 +16,8 @@ class PreprocessingPipeline:
         """
 
         # Training/validation/test splits with stratified categories
-        df_train, df_val_test = train_test_split(self.df, stratify=self.df['category'], test_size=0.3)
-        df_val, df_test = train_test_split(df_val_test, stratify=df_val_test['category'], test_size=0.66)
+        df_train, df_val_test = train_test_split(self.df, stratify=self.df['category'], test_size=0.3, random_state=42)
+        df_val, df_test = train_test_split(df_val_test, stratify=df_val_test['category'], test_size=0.66, random_state=42)
         df_train['fold'] = 'train'
         df_val['fold'] = 'val'
         df_test['fold'] = 'test'
