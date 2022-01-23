@@ -70,7 +70,7 @@ class NewsDataset(Dataset):
         label [torch.FloatTensor of shape (1)]: Label
         """
 
-        text, label = self.texts[idx], self.labels[idx]
+        text = self.texts[idx]
         sequences = self.encode(text, self.max_seq_len)
         sequences = {
             'input_ids': torch.tensor(sequences['input_ids'], dtype=torch.long),
@@ -79,6 +79,7 @@ class NewsDataset(Dataset):
         }
 
         if self.labels is not None:
+            label = self.labels[idx]
             label = torch.tensor(label, dtype=torch.float)
             return sequences, label
         else:

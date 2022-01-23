@@ -23,10 +23,10 @@ class PreprocessingPipeline:
         df_test['fold'] = 'test'
         self.df = pd.concat((df_train, df_val, df_test), axis=0, ignore_index=True)
 
-    def group_titles(self):
+    def group_categories(self):
 
         """
-        Group similar categories into groups
+        Group similar categories into labels
         """
 
         self.df.loc[self.df['category'] == 'other states', 'category'] = 'national'
@@ -88,13 +88,12 @@ class PreprocessingPipeline:
         self.df.loc[self.df['category'] == 'coimbatore', 'category'] = 'national'
         self.df.loc[self.df['category'] == 'motoring', 'category'] = 'sports'
         self.df.loc[self.df['category'] == 'bill kirkman', 'category'] = 'international'
-
         self.df.loc[self.df['category'] == 'schools', 'category'] = 'education'
         self.df.loc[self.df['category'] == 'arts', 'category'] = 'art'
         self.df.loc[self.df['category'] == 'money & careers', 'category'] = 'economy'
         self.df.loc[self.df['category'] == 'gadgets', 'category'] = 'science & technology'
 
-        # Remove vague categories since they can be noisy
+        # Remove vague categories since their labels could be noisy
         other_categories = [
             'new articles', 'news', 'comment', 'letters', 'editorial',
             'lead', 'rx', 'interview', 'internet', 'magazine', 'markets',
@@ -103,14 +102,14 @@ class PreprocessingPipeline:
             'travel', 'issues', 'society', 'readers\' editor', 'diet & nutrition', 'food',
             'young world', 'policy & issues', 'property plus', 'crafts', 'careers'
         ]
-
         self.df = self.df.loc[~self.df['category'].isin(other_categories), :].reset_index(drop=True)
+        # Label encode and one-hot encode categories
         self.df['category_labels'] = LabelEncoder().fit_transform(self.df['category'])
         self.df = pd.concat((self.df, pd.get_dummies(self.df['category'])), axis=1)
 
     def transform(self):
 
-        self.group_titles()
+        self.group_categories()
         self.get_splits()
 
         return self.df
